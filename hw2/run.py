@@ -24,7 +24,6 @@ nWords = len(tokens)
 
 # We are going to train 10-dimensional vectors for this assignment
 dimVectors = 10
-
 # Context size
 C = 5
 

@@ -26,6 +26,7 @@ def softmax(x):
 
     if len(x.shape) > 1:
         # Matrix
+        # axis=1: row-wise，每一行计算，axis=0: column-wise
         tmp = np.max(x, axis=1)
         x -= tmp.reshape((x.shape[0], 1))
         x = np.exp(x)
