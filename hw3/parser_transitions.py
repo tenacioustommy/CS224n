@@ -32,7 +32,9 @@ class PartialParse(object):
         ### Note: The root token should be represented with the string "ROOT"
         ### Note: If you need to use the sentence object to initialize anything, make sure to not directly 
         ###       reference the sentence object.  That is, remember to NOT modify the sentence object. 
-
+        self.stack=["ROOT"]
+        self.buffer=sentence.copy()
+        self.dependencies=[]
 
         ### END YOUR CODE
 
@@ -51,7 +53,14 @@ class PartialParse(object):
         ###         1. Shift
         ###         2. Left Arc
         ###         3. Right Arc
-
+        if transition=="S":
+            self.stack.append(self.buffer.pop(0))
+        elif transition=="LA":
+            self.dependencies.append((self.stack[-1],self.stack[-2]))
+            self.stack.pop(-2)
+        elif transition=="RA":
+            self.dependencies.append((self.stack[-2],self.stack[-1]))
+            self.stack.pop(-1)
 
         ### END YOUR CODE
 
@@ -72,20 +81,21 @@ class PartialParse(object):
 def minibatch_parse(sentences, model, batch_size):
     """Parses a list of sentences in minibatches using a model.
 
-    @param sentences (list of list of str): A list of sentences to be parsed
-                                            (each sentence is a list of words and each word is of type string)
-    @param model (ParserModel): The model that makes parsing decisions. It is assumed to have a function
-                                model.predict(partial_parses) that takes in a list of PartialParses as input and
-                                returns a list of transitions predicted for each parse. That is, after calling
-                                    transitions = model.predict(partial_parses)
-                                transitions[i] will be the next transition to apply to partial_parses[i].
-    @param batch_size (int): The number of PartialParses to include in each minibatch
+    Args:
+        sentences (list of list of str): A list of sentences to be parsed
+                                         (each sentence is a list of words and each word is of type string)
+        model (ParserModel): The model that makes parsing decisions. It is assumed to have a function
+                             model.predict(partial_parses) that takes in a list of PartialParses as input and
+                             returns a list of transitions predicted for each parse. That is, after calling
+                                 transitions = model.predict(partial_parses)
+                             transitions[i] will be the next transition to apply to partial_parses[i].
+        batch_size (int): The number of PartialParses to include in each minibatch
 
-
-    @return dependencies (list of dependency lists): A list where each element is the dependencies
-                                                    list for a parsed sentence. Ordering should be the
-                                                    same as in sentences (i.e., dependencies[i] should
-                                                    contain the parse for sentences[i]).
+    Returns:
+        dependencies (list of dependency lists): A list where each element is the dependencies
+                                                 list for a parsed sentence. Ordering should be the
+                                                 same as in sentences (i.e., dependencies[i] should
+                                                 contain the parse for sentences[i]).
     """
     dependencies = []
 
@@ -103,9 +113,16 @@ def minibatch_parse(sentences, model, batch_size):
     ###             to remove objects from the `unfinished_parses` list. This will free the underlying memory that
     ###             is being accessed by `partial_parses` and may cause your code to crash.
 
-
+    patialparses=[PartialParse(sentence) for sentence in sentences]
+    unfinished_parses=patialparses[:]
+    while len(unfinished_parses)>0:
+        minibatch=unfinished_parses[:batch_size]
+        transitions=model.predict(minibatch)
+        for transition,parse in zip(transitions,unfinished_parses):
+            parse.parse_step(transition)
+        unfinished_parses=[parse for parse in unfinished_parses if len(parse.stack)>1 or len(parse.buffer)>0]
     ### END YOUR CODE
-
+    dependencies=[parse.dependencies for parse in patialparses]
     return dependencies
 
 
