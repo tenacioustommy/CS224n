@@ -34,9 +34,9 @@ class ParserModel(nn.Module):
         hidden_size=200, n_classes=3, dropout_prob=0.5):
         """ Initialize the parser model.
 
-        @param embeddings (ndarray): word embeddings (num_words, embedding_size)
-        @param n_features (int): number of input features
-        @param hidden_size (int): number of hidden units
+        @param embeddings (ndarray): word embeddings (num_words, embedding_size) ,size就是dimension
+        @param n_features (int): number of input features (这通常指的是每个输入样本（例如一个句子或一个文档）中的单词数量)
+        @param hidden_size (int): number of hidden units,是指用于描述或表示单词的属性或特性的数量。这些特性可以包括各种信息，如单词的词性（名词、动词等）、在句子中的位置、词嵌入（即将单词转换为实数向量的表示）等。
         @param n_classes (int): number of output classes
         @param dropout_prob (float): dropout probability
         """
@@ -72,18 +72,20 @@ class ParserModel(nn.Module):
         ###     Dropout: https://pytorch.org/docs/stable/nn.html#dropout-layers
         ### 
         ### See the PDF for hints.
-
-
-
+        self.embed_to_hidden_weight=nn.Parameter(torch.nn.init.xavier_uniform_(torch.empty(self.embed_size*self.n_features,self.hidden_size)))
+        self.embed_to_hidden_bias=nn.Parameter(torch.nn.init.uniform_(torch.empty(self.hidden_size)))
+        self.dropout=nn.Dropout(p=self.dropout_prob)
+        self.hidden_to_logits_weight=nn.Parameter(torch.nn.init.xavier_uniform_(torch.empty(self.hidden_size,self.n_classes)))
+        self.hidden_to_logits_bias=nn.Parameter(torch.nn.init.uniform_(torch.empty(self.n_classes)))
 
         ### END YOUR CODE
 
-    def embedding_lookup(self, w):
+    def embedding_lookup(self, w: torch.Tensor):
         """ Utilize `w` to select embeddings from embedding matrix `self.embeddings`
             @param w (Tensor): input tensor of word indices (batch_size, n_features)
 
             @return x (Tensor): tensor of embeddings for words represented in w
-                                (batch_size, n_features * embed_size)
+                    (batch_size, n_features * embed_size)
         """
 
         ### YOUR CODE HERE (~1-4 Lines)
@@ -107,8 +109,10 @@ class ParserModel(nn.Module):
         ###     View: https://pytorch.org/docs/stable/tensors.html#torch.Tensor.view
         ###     Flatten: https://pytorch.org/docs/stable/generated/torch.flatten.html
 
-
-
+        batch_size=w.shape[0]
+        w=w.flatten()
+        x= torch.index_select(self.embeddings,0,w).view(batch_size,-1)
+             
         ### END YOUR CODE
         return x
 
@@ -144,6 +148,11 @@ class ParserModel(nn.Module):
         ###     Matrix product: https://pytorch.org/docs/stable/torch.html#torch.matmul
         ###     ReLU: https://pytorch.org/docs/stable/nn.html?highlight=relu#torch.nn.functional.relu
 
+        x=self.embedding_lookup(w)
+        x=torch.matmul(x,self.embed_to_hidden_weight)+self.embed_to_hidden_bias
+        x=F.relu(x)
+        x=self.dropout(x)
+        logits=torch.matmul(x,self.hidden_to_logits_weight)+self.hidden_to_logits_bias
 
         ### END YOUR CODE
         return logits
